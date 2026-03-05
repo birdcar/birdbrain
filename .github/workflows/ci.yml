@@ -34,6 +34,8 @@ jobs:
           test -x "$APP/Contents/Resources/kitty/kitty.app/Contents/MacOS/kitty"
 
           # Configs are present
+          test -f "$APP/Contents/Resources/config/claude/settings.json"
+          test -f "$APP/Contents/Resources/config/claude/system-prompt.txt"
           test -f "$APP/Contents/Resources/config/kitty/kitty.conf"
           test -f "$APP/Contents/Resources/config/kitty/dark-theme.auto.conf"
           test -f "$APP/Contents/Resources/config/kitty/light-theme.auto.conf"

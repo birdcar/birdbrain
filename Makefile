@@ -11,6 +11,7 @@ build: download-kitty
 	@echo "→ Building $(APP_NAME).app..."
 	@rm -rf "$(BUNDLE)"
 	@mkdir -p "$(BUNDLE)/Contents/MacOS"
+	@mkdir -p "$(BUNDLE)/Contents/Resources/config/claude"
 	@mkdir -p "$(BUNDLE)/Contents/Resources/config/kitty"
 	@mkdir -p "$(BUNDLE)/Contents/Resources/config/nvim"
 	@mkdir -p "$(BUNDLE)/Contents/Resources/kitty"
@@ -35,6 +36,10 @@ build: download-kitty
 	@chmod +x "$(BUNDLE)/Contents/Resources/scripts/launcher.sh"
 	@chmod +x "$(BUNDLE)/Contents/Resources/scripts/nvim-wrapper.sh"
 	@chmod +x "$(BUNDLE)/Contents/Resources/scripts/update-app.sh"
+
+	# Claude Code config (vendored, isolated from ~/.claude/)
+	@cp src/config/claude/settings.json "$(BUNDLE)/Contents/Resources/config/claude/"
+	@cp src/config/claude/system-prompt.txt "$(BUNDLE)/Contents/Resources/config/claude/"
 
 	# Kitty config + Catppuccin theme files
 	@cp src/config/kitty/kitty.conf "$(BUNDLE)/Contents/Resources/config/kitty/"

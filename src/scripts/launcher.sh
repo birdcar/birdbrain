@@ -10,6 +10,7 @@ STATE_DIR="$HOME/.birdbrain"
 BIN_DIR="$STATE_DIR/bin"
 NVIM_DIR="$STATE_DIR/nvim"
 NVIM_CONFIG_DIR="$HOME/.config/birdbrain"
+USER_CONFIG_DIR="$STATE_DIR/config"
 UPDATE_LOG="$STATE_DIR/update.log"
 VERSION_FILE="$STATE_DIR/.app-version"
 
@@ -118,6 +119,28 @@ deploy_nvim_config() {
     fi
 }
 
+# ─── User Config Deployment ───
+# Deploy bundled configs to ~/.birdbrain/config/ on first run only.
+# Users can edit these files to customize Birdbrain. App updates
+# will NOT overwrite user modifications.
+
+deploy_user_configs() {
+    # Claude Code config
+    if [ ! -f "$USER_CONFIG_DIR/claude/settings.json" ]; then
+        mkdir -p "$USER_CONFIG_DIR/claude"
+        cp "$RESOURCES/config/claude/settings.json" "$USER_CONFIG_DIR/claude/"
+        cp "$RESOURCES/config/claude/system-prompt.txt" "$USER_CONFIG_DIR/claude/"
+    fi
+
+    # Kitty config
+    if [ ! -f "$USER_CONFIG_DIR/kitty/kitty.conf" ]; then
+        mkdir -p "$USER_CONFIG_DIR/kitty"
+        cp "$RESOURCES/config/kitty/kitty.conf" "$USER_CONFIG_DIR/kitty/"
+        cp "$RESOURCES/config/kitty/dark-theme.auto.conf" "$USER_CONFIG_DIR/kitty/"
+        cp "$RESOURCES/config/kitty/light-theme.auto.conf" "$USER_CONFIG_DIR/kitty/"
+    fi
+}
+
 # ─── First Run Setup ───
 
 needs_setup() {
@@ -188,6 +211,7 @@ fi
 
 # Always sync config and wrapper (handles app updates)
 deploy_nvim_config
+deploy_user_configs
 install_nvim_wrapper
 
 # ─── Background Update Check ───
@@ -260,7 +284,12 @@ WORK_DIR=$(choose_directory)
 
 if command -v claude &>/dev/null; then
     cd "$WORK_DIR"
-    exec claude
+    CLAUDE_ARGS=(
+        --settings "$USER_CONFIG_DIR/claude/settings.json"
+        --setting-sources "project,local"
+        --append-system-prompt "$(cat "$USER_CONFIG_DIR/claude/system-prompt.txt")"
+    )
+    exec claude "${CLAUDE_ARGS[@]}"
 else
     echo ""
     error "Claude Code is not installed."
