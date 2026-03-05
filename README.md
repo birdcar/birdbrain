@@ -33,12 +33,9 @@ This removes the app from `/Applications`, plus the `~/.birdbrain` state directo
 
 ## First launch
 
-The first time you open Birdbrain, it detects that its dependencies are missing and installs them automatically. No Homebrew, no sudo, no password prompts:
+Neovim and its plugins are bundled in the app -- no download needed. The only first-run dependency is **Claude Code**, which is installed automatically via the [official install script](https://claude.ai/install.sh). No Homebrew, no sudo, no password prompts.
 
-1. **Neovim** -- downloaded directly from GitHub releases into `~/.birdbrain/nvim/`
-2. **Claude Code** -- installed via the [official install script](https://claude.ai/install.sh)
-
-The whole process takes under a minute on a decent connection. If anything fails, close the app and reopen it -- setup picks up where it left off.
+Setup takes under a minute. If anything fails, close the app and reopen it -- setup picks up where it left off.
 
 After setup completes, Birdbrain asks you to pick a folder and launches Claude Code there. Every subsequent launch skips setup and goes straight to the folder picker.
 
@@ -75,19 +72,22 @@ Birdbrain is a standard macOS `.app` bundle. The structure is:
 
 ```
 Birdbrain.app/Contents/
-  MacOS/birdbrain          # Shell script entry point
+  MacOS/birdbrain              # Shell script entry point
   Resources/
-    kitty/kitty.app/       # Embedded Kitty terminal
-    config/kitty/          # Kitty config + theme files
-    config/nvim/           # Full LazyVim-based Neovim config
+    kitty/kitty.app/           # Embedded Kitty terminal
+    nvim/                      # Embedded Neovim binary
+    config/claude/             # Claude Code settings + system prompt
+    config/kitty/              # Kitty config + theme files
+    config-home/birdbrain/     # Neovim config (LazyVim)
+    data-home/birdbrain/lazy/  # Pre-built Neovim plugins
     scripts/
-      launcher.sh          # First-run setup, updates, launches Claude
-      nvim-wrapper.sh      # Sets NVIM_APPNAME=birdbrain, execs nvim
+      launcher.sh              # First-run setup, updates, launches Claude
+      nvim-wrapper.sh          # Configures env and execs bundled nvim
 ```
 
-When you launch the app, `birdbrain.sh` starts the embedded Kitty with a custom config and tells it to run `launcher.sh` as its shell. The launcher handles first-run setup, syncs the Neovim config to `~/.config/birdbrain/`, starts a background update check, then `exec`s into `claude`.
+When you launch the app, `birdbrain.sh` starts the embedded Kitty with a custom config and tells it to run `launcher.sh` as its shell. The launcher handles first-run Claude Code setup, deploys user-editable configs to `~/.birdbrain/config/`, starts a background update check, then `exec`s into `claude`.
 
-The Neovim wrapper is a three-line script that sets `NVIM_APPNAME=birdbrain` before calling `nvim`. This means Birdbrain's Neovim config lives in `~/.config/birdbrain/` and its data lives in `~/.local/share/birdbrain/` -- completely isolated from any existing Neovim setup you might have.
+Neovim, its plugins, and its config are fully vendored in the app bundle -- no downloads, no user-managed config. The Neovim wrapper sets `XDG_CONFIG_HOME` and `XDG_DATA_HOME` to point at the bundle, so everything is self-contained and isolated from any existing Neovim setup.
 
 Claude Code's `EDITOR` environment variable is pointed at this wrapper, so Ctrl+G opens Birdbrain's Neovim rather than whatever editor you use elsewhere.
 
@@ -124,7 +124,7 @@ If right-click > Open doesn't work (some macOS versions are stricter), go to **S
 Delete the state directory and reopen the app. This re-triggers first-run setup:
 
 ```bash
-rm -rf ~/.birdbrain ~/.config/birdbrain
+rm -rf ~/.birdbrain
 ```
 
 ### Claude Code needs updating
@@ -133,24 +133,6 @@ Updates happen automatically in the background, but if you need to force it:
 
 ```bash
 claude update
-```
-
-### Neovim needs updating
-
-Birdbrain manages its own Neovim install in `~/.birdbrain/nvim/`. To force an update:
-
-```bash
-rm -rf ~/.birdbrain/nvim
-```
-
-Reopen Birdbrain and it will download the latest version.
-
-### Neovim plugins not loading
-
-Birdbrain's Neovim uses [lazy.nvim](https://github.com/folke/lazy.nvim) for plugin management. Plugins install automatically on first editor open. If something goes wrong, clear the plugin cache:
-
-```bash
-rm -rf ~/.local/share/birdbrain/lazy
 ```
 
 ## Requirements

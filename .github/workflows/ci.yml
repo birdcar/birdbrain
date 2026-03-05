@@ -33,13 +33,19 @@ jobs:
           # Kitty is embedded
           test -x "$APP/Contents/Resources/kitty/kitty.app/Contents/MacOS/kitty"
 
+          # Neovim is embedded
+          test -x "$APP/Contents/Resources/nvim/bin/nvim"
+
+          # Pre-built plugins are present
+          test -d "$APP/Contents/Resources/data-home/birdbrain/lazy/lazy.nvim"
+
           # Configs are present
           test -f "$APP/Contents/Resources/config/claude/settings.json"
           test -f "$APP/Contents/Resources/config/claude/system-prompt.txt"
           test -f "$APP/Contents/Resources/config/kitty/kitty.conf"
           test -f "$APP/Contents/Resources/config/kitty/dark-theme.auto.conf"
           test -f "$APP/Contents/Resources/config/kitty/light-theme.auto.conf"
-          test -d "$APP/Contents/Resources/config/nvim/lua"
+          test -d "$APP/Contents/Resources/config-home/birdbrain/lua"
 
           echo "All bundle checks passed."
 

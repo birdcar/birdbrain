@@ -1,20 +1,13 @@
 #!/bin/bash
 # Birdbrain launcher — runs inside Kitty as the shell
-# Handles first-run setup, updates, and launches Claude Code
-#
-# All dependencies are self-contained in ~/.birdbrain — no Homebrew,
-# no sudo, no system-level installs required.
+# Handles first-run Claude Code setup, user config deployment,
+# background updates, and launches Claude Code.
 
 RESOURCES="${BIRDBRAIN_RESOURCES:-$(cd "$(dirname "$0")/../.." && pwd)/Resources}"
 STATE_DIR="$HOME/.birdbrain"
 BIN_DIR="$STATE_DIR/bin"
-NVIM_DIR="$STATE_DIR/nvim"
-NVIM_CONFIG_DIR="$HOME/.config/birdbrain"
 USER_CONFIG_DIR="$STATE_DIR/config"
 UPDATE_LOG="$STATE_DIR/update.log"
-VERSION_FILE="$STATE_DIR/.app-version"
-
-NVIM_RELEASE_URL="https://github.com/neovim/neovim/releases/download/stable/nvim-macos-arm64.tar.gz"
 
 mkdir -p "$STATE_DIR" "$BIN_DIR"
 
@@ -58,70 +51,20 @@ wait_for_key() {
 
 # ─── PATH setup ───
 
-# Include all possible Claude Code install locations + our own bin dir
-export PATH="$BIN_DIR:$NVIM_DIR/bin:$HOME/.local/bin:$HOME/.claude/local/bin:$PATH"
+export PATH="$BIN_DIR:$HOME/.local/bin:$HOME/.claude/local/bin:$PATH"
 export EDITOR="$BIN_DIR/nvim-birdbrain"
 export VISUAL="$EDITOR"
 
-# ─── Neovim Management ───
-
-install_nvim() {
-    info "Installing Neovim..."
-    local tmp_dir
-    tmp_dir=$(mktemp -d)
-
-    if curl -fsSL "$NVIM_RELEASE_URL" -o "$tmp_dir/nvim.tar.gz"; then
-        rm -rf "$NVIM_DIR"
-        mkdir -p "$NVIM_DIR"
-        tar xzf "$tmp_dir/nvim.tar.gz" -C "$NVIM_DIR" --strip-components=1
-        rm -rf "$tmp_dir"
-
-        if [ -x "$NVIM_DIR/bin/nvim" ]; then
-            success "Neovim installed."
-            return 0
-        fi
-    fi
-
-    rm -rf "$tmp_dir"
-    return 1
-}
+# ─── Neovim Wrapper ───
 
 install_nvim_wrapper() {
     cp "$RESOURCES/scripts/nvim-wrapper.sh" "$BIN_DIR/nvim-birdbrain"
     chmod +x "$BIN_DIR/nvim-birdbrain"
 }
 
-# ─── Neovim Config Deployment ───
-
-deploy_nvim_config() {
-    local app_version=""
-    local deployed_version=""
-
-    if [ -f "$RESOURCES/../Info.plist" ]; then
-        app_version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$RESOURCES/../Info.plist" 2>/dev/null || echo "unknown")
-    fi
-
-    if [ -f "$VERSION_FILE" ]; then
-        deployed_version=$(cat "$VERSION_FILE")
-    fi
-
-    if [ "$app_version" != "$deployed_version" ] || [ ! -d "$NVIM_CONFIG_DIR/lua" ]; then
-        info "Syncing Neovim configuration..."
-        mkdir -p "$NVIM_CONFIG_DIR"
-        if command -v rsync &>/dev/null; then
-            rsync -a --delete "$RESOURCES/config/nvim/" "$NVIM_CONFIG_DIR/"
-        else
-            rm -rf "$NVIM_CONFIG_DIR"
-            cp -R "$RESOURCES/config/nvim" "$NVIM_CONFIG_DIR"
-        fi
-        echo "$app_version" > "$VERSION_FILE"
-        success "Neovim configuration updated."
-    fi
-}
-
 # ─── User Config Deployment ───
 # Deploy bundled configs to ~/.birdbrain/config/ on first run only.
-# Users can edit these files to customize Birdbrain. App updates
+# Users can edit these files to customize Claude and Kitty. App updates
 # will NOT overwrite user modifications.
 
 deploy_user_configs() {
@@ -144,7 +87,6 @@ deploy_user_configs() {
 # ─── First Run Setup ───
 
 needs_setup() {
-    [ ! -x "$NVIM_DIR/bin/nvim" ] || \
     ! command -v claude &>/dev/null || \
     [ ! -f "$BIN_DIR/nvim-birdbrain" ]
 }
@@ -156,21 +98,10 @@ run_setup() {
     info "Welcome to Birdbrain! Let's get you set up."
     echo ""
 
-    # 1. Neovim (non-blocking — Claude Code works without it)
-    if [ ! -x "$NVIM_DIR/bin/nvim" ]; then
-        if ! install_nvim; then
-            warn "Neovim installation failed — Ctrl+G editing won't work."
-            warn "Check your internet connection and reopen Birdbrain to retry."
-        fi
-    else
-        success "Neovim found."
-    fi
-
-    # 2. Claude Code via official install script (blocking)
+    # Claude Code via official install script (blocking)
     if ! command -v claude &>/dev/null; then
         info "Installing Claude Code..."
         if bash -c "$(curl -fsSL https://claude.ai/install.sh)"; then
-            # Refresh PATH to pick up newly installed claude
             export PATH="$HOME/.local/bin:$HOME/.claude/local/bin:$PATH"
             if command -v claude &>/dev/null; then
                 success "Claude Code installed."
@@ -191,20 +122,9 @@ run_setup() {
         success "Claude Code found."
     fi
 
-    # 3. Neovim wrapper
+    # Neovim wrapper + user configs
     install_nvim_wrapper
-
-    # 4. Pre-install Neovim plugins so first Ctrl+G is instant
-    if [ -x "$NVIM_DIR/bin/nvim" ]; then
-        info "Installing editor plugins..."
-        deploy_nvim_config
-        deploy_user_configs
-        if NVIM_APPNAME=birdbrain "$NVIM_DIR/bin/nvim" --headless "+Lazy! sync" +qa 2>/dev/null; then
-            success "Editor plugins installed."
-        else
-            warn "Plugin install failed — they'll install on first editor open."
-        fi
-    fi
+    deploy_user_configs
 
     echo ""
     if [ "$had_errors" = true ]; then
@@ -221,10 +141,9 @@ if needs_setup; then
     run_setup
 fi
 
-# Always sync config and wrapper (handles app updates)
-deploy_nvim_config
-deploy_user_configs
+# Always ensure wrapper and configs are current
 install_nvim_wrapper
+deploy_user_configs
 
 # ─── Background Update Check ───
 
@@ -244,16 +163,8 @@ run_update_check() {
 
     {
         echo "--- Update check: $(date) ---"
-        # Update Claude Code
         if command -v claude &>/dev/null; then
             claude update 2>&1 || true
-        fi
-        # Update Neovim by re-downloading stable release
-        if curl -fsSL "$NVIM_RELEASE_URL" -o "$STATE_DIR/nvim-update.tar.gz" 2>/dev/null; then
-            rm -rf "$NVIM_DIR"
-            mkdir -p "$NVIM_DIR"
-            tar xzf "$STATE_DIR/nvim-update.tar.gz" -C "$NVIM_DIR" --strip-components=1
-            rm -f "$STATE_DIR/nvim-update.tar.gz"
         fi
         echo "$now" > "$last_update_file"
         echo "--- Update complete ---"
