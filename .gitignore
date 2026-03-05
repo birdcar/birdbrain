@@ -1,0 +1,5 @@
+build/
+dist/
+*.dmg
+*.app
+.DS_Store
