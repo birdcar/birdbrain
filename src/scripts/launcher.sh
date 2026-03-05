@@ -74,7 +74,7 @@ setup_brew_env
 
 # ─── Editor setup ───
 
-export PATH="$HOME/.claude/local/bin:$BIN_DIR:$PATH"
+export PATH="$HOME/.local/bin:$HOME/.claude/local/bin:$BIN_DIR:$PATH"
 export EDITOR="$BIN_DIR/nvim-birdbrain"
 export VISUAL="$EDITOR"
 
@@ -169,8 +169,8 @@ run_setup() {
     if ! command -v claude &>/dev/null; then
         info "Installing Claude Code..."
         if run_native bash -c "$(curl -fsSL https://claude.ai/install.sh)"; then
-            # The installer puts claude in ~/.claude/local/bin
-            export PATH="$HOME/.claude/local/bin:$PATH"
+            # The installer may put claude in ~/.local/bin or ~/.claude/local/bin
+            export PATH="$HOME/.local/bin:$HOME/.claude/local/bin:$PATH"
             if command -v claude &>/dev/null; then
                 success "Claude Code installed."
             else
