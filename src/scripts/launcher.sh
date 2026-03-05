@@ -84,6 +84,16 @@ deploy_user_configs() {
     fi
 }
 
+# ─── Launch Services Registration ───
+# Ensure Finder "Open With > Birdbrain" works regardless of install method
+register_with_launch_services() {
+    local app_bundle
+    app_bundle=$(cd "$RESOURCES/../.." && pwd)
+    if [[ "$app_bundle" == *.app ]]; then
+        /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$app_bundle" 2>/dev/null || true
+    fi
+}
+
 # ─── First Run Setup ───
 
 needs_setup() {
@@ -122,9 +132,10 @@ run_setup() {
         success "Claude Code found."
     fi
 
-    # Neovim wrapper + user configs
+    # Neovim wrapper + user configs + Finder registration
     install_nvim_wrapper
     deploy_user_configs
+    register_with_launch_services
 
     echo ""
     if [ "$had_errors" = true ]; then
