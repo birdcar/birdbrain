@@ -1,5 +1,5 @@
--- Start in insert mode for new files
-vim.api.nvim_create_autocmd("BufNewFile", {
+-- Always start in insert mode — Birdbrain users aren't vim users
+vim.api.nvim_create_autocmd("BufEnter", {
   callback = function()
     vim.cmd("startinsert")
   end,
