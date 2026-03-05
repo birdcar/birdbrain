@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-smoke-test:
+    name: Build and Smoke Test
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: make build
+
+      - name: Verify app bundle structure
+        run: |
+          APP="build/Birdbrain.app"
+
+          # Core structure exists
+          test -f "$APP/Contents/Info.plist"
+          test -x "$APP/Contents/MacOS/birdbrain"
+
+          # Scripts are present and executable
+          test -x "$APP/Contents/Resources/scripts/launcher.sh"
+          test -x "$APP/Contents/Resources/scripts/nvim-wrapper.sh"
+          test -x "$APP/Contents/Resources/scripts/update-app.sh"
+
+          # Kitty is embedded
+          test -x "$APP/Contents/Resources/kitty/kitty.app/Contents/MacOS/kitty"
+
+          # Configs are present
+          test -f "$APP/Contents/Resources/config/kitty/kitty.conf"
+          test -f "$APP/Contents/Resources/config/kitty/dark-theme.auto.conf"
+          test -f "$APP/Contents/Resources/config/kitty/light-theme.auto.conf"
+          test -d "$APP/Contents/Resources/config/nvim/lua"
+
+          echo "All bundle checks passed."
+
+      - name: Install to /Applications
+        run: make install
+
+      - name: Verify install
+        run: |
+          test -x "/Applications/Birdbrain.app/Contents/MacOS/birdbrain"
+          echo "Install verified."
+
+      - name: Create distributable zip
+        run: make dist
+
+      - name: Verify zip was created
+        run: |
+          ls -la build/Birdbrain-*.zip
+          echo "Distributable zip verified."
+
+      - name: Clean
+        run: make clean && test ! -d build
