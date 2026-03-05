@@ -62,6 +62,7 @@ Birdbrain is intentionally minimal. There are only a few keybindings to know:
 | Ctrl+S | Neovim | Save |
 | Ctrl+Q | Neovim | Save and quit (returns to Claude Code) |
 | Esc Esc | Neovim | Save and quit (same as Ctrl+Q) |
+| Cmd+O | Anywhere | Open a new window with the folder picker |
 | Cmd+Q | Anywhere | Quit Birdbrain |
 | Cmd+C / Cmd+V | Anywhere | Copy / Paste |
 | Cmd+Plus / Cmd+Minus | Anywhere | Increase / decrease font size |
