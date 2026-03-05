@@ -47,7 +47,7 @@ current=$(get_version "$INFO_PLIST")
 
 response=$(curl -s --max-time 10 "$GITHUB_API" 2>/dev/null) || { log "API unreachable"; exit 1; }
 
-tag=$(echo "$response" | grep -o '"tag_name":"[^"]*' | head -1 | cut -d'"' -f4)
+tag=$(echo "$response" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed 's/.*"tag_name": *"//;s/"//')
 [ -z "$tag" ] && { log "No tag found"; exit 1; }
 
 latest="${tag#v}"
@@ -58,7 +58,7 @@ if ! version_gt "$latest" "$current"; then
     exit 0
 fi
 
-dl_url=$(echo "$response" | grep -o '"browser_download_url":"[^"]*\.zip"' | head -1 | cut -d'"' -f4)
+dl_url=$(echo "$response" | grep -o '"browser_download_url": *"[^"]*\.zip"' | head -1 | sed 's/.*"browser_download_url": *"//;s/"//')
 [ -z "$dl_url" ] && { log "No download URL"; exit 1; }
 
 log "Downloading $latest..."
