@@ -213,6 +213,13 @@ WORK_DIR=$(choose_directory)
 
 if command -v claude &>/dev/null; then
     cd "$WORK_DIR"
+
+    # Show loading state while Claude Code starts
+    printf '\033[2J\033[H'
+    print_banner
+    info "Opening $(basename "$WORK_DIR")..."
+    printf '\033[90m  Starting Claude Code...\033[0m\n\n'
+
     CLAUDE_ARGS=(
         --settings "$USER_CONFIG_DIR/claude/settings.json"
         --setting-sources "project,local"

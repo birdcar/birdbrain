@@ -11,6 +11,11 @@ import sys
 import tty
 import termios
 
+# Write TUI output to /dev/tty so it's visible even when stdout is captured
+# by a command substitution. Only the final selected path goes to stdout.
+TTY = open("/dev/tty", "w")
+TTY_IN = open("/dev/tty", "r")
+
 
 def get_folders(path):
     """List subdirectories in path, sorted alphabetically."""
@@ -28,16 +33,16 @@ def get_folders(path):
 def render(stdscr, cwd, folders, selected, scroll_offset, rows):
     """Render the folder picker UI."""
     # Clear screen
-    sys.stdout.write("\033[2J\033[H")
+    TTY.write("\033[2J\033[H")
 
     # Header
-    sys.stdout.write("\033[1;35m  Birdbrain — Choose a folder\033[0m\n")
-    sys.stdout.write("\033[90m  ─────────────────────────────\033[0m\n")
+    TTY.write("\033[1;35m  Birdbrain — Choose a folder\033[0m\r\n")
+    TTY.write("\033[90m  ─────────────────────────────\033[0m\r\n")
 
     # Current path
     home = os.path.expanduser("~")
     display_path = cwd.replace(home, "~") if cwd.startswith(home) else cwd
-    sys.stdout.write(f"\033[1;34m  {display_path}/\033[0m\n\n")
+    TTY.write(f"\033[1;34m  {display_path}/\033[0m\r\n\r\n")
 
     # Available rows for listing (header=4 lines, footer=3 lines)
     list_rows = rows - 7
@@ -56,35 +61,35 @@ def render(stdscr, cwd, folders, selected, scroll_offset, rows):
     for i, item in enumerate(visible):
         idx = i + scroll_offset
         if idx == selected:
-            sys.stdout.write(f"\033[1;32m  ▸ {item}\033[0m\n")
+            TTY.write(f"\033[1;32m  ▸ {item}\033[0m\r\n")
         else:
-            sys.stdout.write(f"    {item}\n")
+            TTY.write(f"    {item}\r\n")
 
     # Scroll indicator
     if len(items) > list_rows:
         if scroll_offset > 0:
-            sys.stdout.write("\033[90m    ↑ more\033[0m\n")
+            TTY.write("\033[90m    ↑ more\033[0m\r\n")
         elif scroll_offset + list_rows < len(items):
-            sys.stdout.write("\033[90m    ↓ more\033[0m\n")
+            TTY.write("\033[90m    ↓ more\033[0m\r\n")
         else:
-            sys.stdout.write("\n")
+            TTY.write("\r\n")
     else:
-        sys.stdout.write("\n")
+        TTY.write("\r\n")
 
     # Footer
-    sys.stdout.write("\n\033[90m  Enter: open  │  ← back  │  → enter folder  │  Esc: home dir\033[0m")
-    sys.stdout.flush()
+    TTY.write("\r\n\033[90m  Enter: open  │  ← back  │  → enter folder  │  Esc: home dir\033[0m")
+    TTY.flush()
 
     return scroll_offset
 
 
 def read_key():
     """Read a single keypress, handling escape sequences."""
-    ch = sys.stdin.read(1)
+    ch = TTY_IN.read(1)
     if ch == "\033":
-        ch2 = sys.stdin.read(1)
+        ch2 = TTY_IN.read(1)
         if ch2 == "[":
-            ch3 = sys.stdin.read(1)
+            ch3 = TTY_IN.read(1)
             if ch3 == "A":
                 return "up"
             elif ch3 == "B":
@@ -95,9 +100,9 @@ def read_key():
                 return "left"
             elif ch3 == "M":
                 # Mouse click: read 3 more bytes
-                btn = ord(sys.stdin.read(1)) - 32
-                col = ord(sys.stdin.read(1)) - 32
-                row = ord(sys.stdin.read(1)) - 32
+                btn = ord(TTY_IN.read(1)) - 32
+                col = ord(TTY_IN.read(1)) - 32
+                row = ord(TTY_IN.read(1)) - 32
                 if btn == 0:  # left click
                     return ("click", row, col)
                 return "mouse_other"
@@ -112,7 +117,7 @@ def read_key():
 
 def get_terminal_size():
     try:
-        cols, rows = os.get_terminal_size()
+        cols, rows = os.get_terminal_size(TTY.fileno())
         return rows, cols
     except OSError:
         return 24, 80
@@ -128,16 +133,16 @@ def main():
     scroll_offset = 0
 
     # Save terminal state and enable raw mode
-    fd = sys.stdin.fileno()
+    fd = TTY_IN.fileno()
     old_settings = termios.tcgetattr(fd)
 
     try:
         tty.setraw(fd)
         # Enable mouse tracking (basic mode)
-        sys.stdout.write("\033[?1000h")
+        TTY.write("\033[?1000h")
         # Hide cursor
-        sys.stdout.write("\033[?25l")
-        sys.stdout.flush()
+        TTY.write("\033[?25l")
+        TTY.flush()
 
         while True:
             rows, cols = get_terminal_size()
@@ -167,8 +172,8 @@ def main():
                     # Select this directory
                     chosen = os.path.join(cwd, folders[selected - 1])
                     # Restore terminal
-                    sys.stdout.write("\033[?1000l\033[?25h\033[2J\033[H")
-                    sys.stdout.flush()
+                    TTY.write("\033[?1000l\033[?25h\033[2J\033[H")
+                    TTY.flush()
                     termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
                     print(chosen)
                     return
@@ -185,8 +190,8 @@ def main():
                     scroll_offset = 0
             elif key == "escape" or key == "quit":
                 # Fall back to home
-                sys.stdout.write("\033[?1000l\033[?25h\033[2J\033[H")
-                sys.stdout.flush()
+                TTY.write("\033[?1000l\033[?25h\033[2J\033[H")
+                TTY.flush()
                 termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
                 print(os.path.expanduser("~"))
                 return
@@ -200,8 +205,8 @@ def main():
 
     except Exception:
         # Ensure terminal is restored on any error
-        sys.stdout.write("\033[?1000l\033[?25h\033[2J\033[H")
-        sys.stdout.flush()
+        TTY.write("\033[?1000l\033[?25h\033[2J\033[H")
+        TTY.flush()
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         print(os.path.expanduser("~"))
 
