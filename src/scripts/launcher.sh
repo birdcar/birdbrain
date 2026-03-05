@@ -222,9 +222,39 @@ run_update_check() {
 
 run_update_check
 
+# ─── Choose Working Directory ───
+
+choose_directory() {
+    # 1. If a folder was passed (Finder "Open With" or open --args), use it
+    if [ -n "${BIRDBRAIN_OPEN_DIR:-}" ] && [ -d "$BIRDBRAIN_OPEN_DIR" ]; then
+        echo "$BIRDBRAIN_OPEN_DIR"
+        return
+    fi
+
+    # 2. Otherwise, show a native macOS folder picker
+    local picked
+    picked=$(osascript -e 'try
+        set chosenFolder to POSIX path of (choose folder with prompt "Choose a folder to open in Birdbrain:")
+        return chosenFolder
+    on error
+        return ""
+    end try' 2>/dev/null) || true
+
+    if [ -n "$picked" ] && [ -d "$picked" ]; then
+        echo "$picked"
+        return
+    fi
+
+    # 3. Fallback to home directory if picker was cancelled
+    echo "$HOME"
+}
+
+WORK_DIR=$(choose_directory)
+
 # ─── Launch Claude Code ───
 
 if command -v claude &>/dev/null; then
+    cd "$WORK_DIR"
     exec claude
 else
     echo ""

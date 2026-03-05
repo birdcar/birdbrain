@@ -41,7 +41,17 @@ The first time you open Birdbrain, it detects that its dependencies are missing 
 
 The whole process takes a few minutes depending on your internet connection. If anything fails, close the app and reopen it -- setup picks up where it left off.
 
-After setup completes, Birdbrain launches directly into Claude Code. Every subsequent launch skips setup and goes straight to Claude.
+After setup completes, Birdbrain asks you to pick a folder and launches Claude Code there. Every subsequent launch skips setup and goes straight to the folder picker.
+
+## Opening a folder
+
+There are three ways to open a folder in Birdbrain:
+
+1. **Launch from Dock or Applications** -- a native folder picker appears, choose your project folder
+2. **Right-click a folder in Finder** -- choose Open With > Birdbrain
+3. **From the terminal** -- `open -a Birdbrain ~/path/to/folder`
+
+If you cancel the folder picker, Birdbrain opens in your home directory.
 
 ## Keybindings
 
