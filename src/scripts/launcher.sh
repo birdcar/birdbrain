@@ -186,12 +186,7 @@ choose_directory() {
     fi
 
     local picked
-    picked=$(osascript -e 'try
-        set chosenFolder to POSIX path of (choose folder with prompt "Choose a folder to open in Birdbrain:")
-        return chosenFolder
-    on error
-        return ""
-    end try' 2>/dev/null) || true
+    picked=$(python3 "$RESOURCES/scripts/folder-picker.py" "$HOME" 2>/dev/null) || true
 
     if [ -n "$picked" ] && [ -d "$picked" ]; then
         echo "$picked"
