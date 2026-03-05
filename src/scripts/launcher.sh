@@ -54,6 +54,7 @@ wait_for_key() {
 export PATH="$BIN_DIR:$HOME/.local/bin:$HOME/.claude/local/bin:$PATH"
 export EDITOR="$BIN_DIR/nvim-birdbrain"
 export VISUAL="$EDITOR"
+export BROWSER="open"
 
 # ─── Neovim Wrapper ───
 
