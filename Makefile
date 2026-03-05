@@ -38,6 +38,7 @@ build: download-kitty download-nvim build-nvim-plugins
 	@cp src/scripts/launcher.sh "$(BUNDLE)/Contents/Resources/scripts/"
 	@cp src/scripts/nvim-wrapper.sh "$(BUNDLE)/Contents/Resources/scripts/"
 	@cp src/scripts/update-app.sh "$(BUNDLE)/Contents/Resources/scripts/"
+	@cp src/scripts/folder-picker.py "$(BUNDLE)/Contents/Resources/scripts/"
 	@chmod +x "$(BUNDLE)/Contents/Resources/scripts/launcher.sh"
 	@chmod +x "$(BUNDLE)/Contents/Resources/scripts/nvim-wrapper.sh"
 	@chmod +x "$(BUNDLE)/Contents/Resources/scripts/update-app.sh"
@@ -112,6 +113,7 @@ install: build
 	@echo "→ Installing to /Applications..."
 	@rm -rf "/Applications/$(APP_NAME).app"
 	@cp -R "$(BUNDLE)" "/Applications/"
+	@/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "/Applications/$(APP_NAME).app"
 	@echo "✓ Installed $(APP_NAME).app"
 
 uninstall:
