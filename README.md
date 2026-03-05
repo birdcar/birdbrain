@@ -33,13 +33,12 @@ This removes the app from `/Applications`, plus the `~/.birdbrain` state directo
 
 ## First launch
 
-The first time you open Birdbrain, it detects that its dependencies are missing and walks you through setup. It installs three things, in order:
+The first time you open Birdbrain, it detects that its dependencies are missing and installs them automatically. No Homebrew, no sudo, no password prompts:
 
-1. **Homebrew** -- you'll be prompted for your macOS password
-2. **Neovim** -- the text editor used for Ctrl+G (installed via Homebrew)
-3. **Claude Code** -- installed via the [official install script](https://claude.ai/install.sh)
+1. **Neovim** -- downloaded directly from GitHub releases into `~/.birdbrain/nvim/`
+2. **Claude Code** -- installed via the [official install script](https://claude.ai/install.sh)
 
-The whole process takes a few minutes depending on your internet connection. If anything fails, close the app and reopen it -- setup picks up where it left off.
+The whole process takes under a minute on a decent connection. If anything fails, close the app and reopen it -- setup picks up where it left off.
 
 After setup completes, Birdbrain asks you to pick a folder and launches Claude Code there. Every subsequent launch skips setup and goes straight to the folder picker.
 
@@ -97,7 +96,7 @@ The terminal font is SF Mono at 14pt.
 
 ## Updates
 
-Birdbrain runs a background update check once per day. It uses `brew upgrade` to update Claude Code and Neovim. Update logs are written to `~/.birdbrain/update.log`.
+Birdbrain runs a background update check once per day. It updates Claude Code via `claude update` and re-downloads the latest stable Neovim release. Update logs are written to `~/.birdbrain/update.log`.
 
 When the app itself is updated (new `.app` version), it automatically re-syncs the bundled Neovim configuration on next launch.
 
@@ -132,6 +131,16 @@ Updates happen automatically in the background, but if you need to force it:
 ```bash
 claude update
 ```
+
+### Neovim needs updating
+
+Birdbrain manages its own Neovim install in `~/.birdbrain/nvim/`. To force an update:
+
+```bash
+rm -rf ~/.birdbrain/nvim
+```
+
+Reopen Birdbrain and it will download the latest version.
 
 ### Neovim plugins not loading
 

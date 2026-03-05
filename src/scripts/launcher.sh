@@ -1,13 +1,19 @@
 #!/bin/bash
 # Birdbrain launcher — runs inside Kitty as the shell
 # Handles first-run setup, updates, and launches Claude Code
+#
+# All dependencies are self-contained in ~/.birdbrain — no Homebrew,
+# no sudo, no system-level installs required.
 
 RESOURCES="${BIRDBRAIN_RESOURCES:-$(cd "$(dirname "$0")/../.." && pwd)/Resources}"
 STATE_DIR="$HOME/.birdbrain"
 BIN_DIR="$STATE_DIR/bin"
+NVIM_DIR="$STATE_DIR/nvim"
 NVIM_CONFIG_DIR="$HOME/.config/birdbrain"
 UPDATE_LOG="$STATE_DIR/update.log"
 VERSION_FILE="$STATE_DIR/.app-version"
+
+NVIM_RELEASE_URL="https://github.com/neovim/neovim/releases/download/stable/nvim-macos-arm64.tar.gz"
 
 mkdir -p "$STATE_DIR" "$BIN_DIR"
 
@@ -49,36 +55,35 @@ wait_for_key() {
     printf '\n'
 }
 
-# Run a command under native ARM architecture to avoid Rosetta issues
-# Kitty's embedded binary may run under x86_64, but Homebrew on Apple
-# Silicon is at /opt/homebrew and requires ARM execution
-run_native() {
-    if [ "$(uname -m)" = "arm64" ] || [ -d /opt/homebrew ]; then
-        arch -arm64 "$@"
-    else
-        "$@"
-    fi
-}
+# ─── PATH setup ───
 
-# ─── Homebrew PATH ───
-
-setup_brew_env() {
-    if [ -x /opt/homebrew/bin/brew ]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-    elif [ -x /usr/local/bin/brew ]; then
-        eval "$(/usr/local/bin/brew shellenv)"
-    fi
-}
-
-setup_brew_env
-
-# ─── Editor setup ───
-
-export PATH="$HOME/.local/bin:$HOME/.claude/local/bin:$BIN_DIR:$PATH"
+# Include all possible Claude Code install locations + our own bin dir
+export PATH="$BIN_DIR:$NVIM_DIR/bin:$HOME/.local/bin:$HOME/.claude/local/bin:$PATH"
 export EDITOR="$BIN_DIR/nvim-birdbrain"
 export VISUAL="$EDITOR"
 
-# ─── Neovim Wrapper ───
+# ─── Neovim Management ───
+
+install_nvim() {
+    info "Installing Neovim..."
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
+
+    if curl -fsSL "$NVIM_RELEASE_URL" -o "$tmp_dir/nvim.tar.gz"; then
+        rm -rf "$NVIM_DIR"
+        mkdir -p "$NVIM_DIR"
+        tar xzf "$tmp_dir/nvim.tar.gz" -C "$NVIM_DIR" --strip-components=1
+        rm -rf "$tmp_dir"
+
+        if [ -x "$NVIM_DIR/bin/nvim" ]; then
+            success "Neovim installed."
+            return 0
+        fi
+    fi
+
+    rm -rf "$tmp_dir"
+    return 1
+}
 
 install_nvim_wrapper() {
     cp "$RESOURCES/scripts/nvim-wrapper.sh" "$BIN_DIR/nvim-birdbrain"
@@ -116,8 +121,7 @@ deploy_nvim_config() {
 # ─── First Run Setup ───
 
 needs_setup() {
-    ! command -v brew &>/dev/null || \
-    ! command -v nvim &>/dev/null || \
+    [ ! -x "$NVIM_DIR/bin/nvim" ] || \
     ! command -v claude &>/dev/null || \
     [ ! -f "$BIN_DIR/nvim-birdbrain" ]
 }
@@ -129,47 +133,21 @@ run_setup() {
     info "Welcome to Birdbrain! Let's get you set up."
     echo ""
 
-    # 1. Homebrew (needed for Neovim)
-    if ! command -v brew &>/dev/null; then
-        info "Installing Homebrew (macOS package manager)..."
-        info "You may be asked for your password."
-        echo ""
-        if run_native /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
-            setup_brew_env
-            if command -v brew &>/dev/null; then
-                success "Homebrew installed."
-            else
-                error "Homebrew installed but not found in PATH."
-                error "Try closing and reopening Birdbrain."
-                had_errors=true
-            fi
-        else
-            error "Homebrew installation failed."
-            error "Check your internet connection and try reopening Birdbrain."
-            had_errors=true
+    # 1. Neovim (non-blocking — Claude Code works without it)
+    if [ ! -x "$NVIM_DIR/bin/nvim" ]; then
+        if ! install_nvim; then
+            warn "Neovim installation failed — Ctrl+G editing won't work."
+            warn "Check your internet connection and reopen Birdbrain to retry."
         fi
     else
-        success "Homebrew found."
-    fi
-
-    # 2. Neovim via Homebrew (non-blocking — Claude Code works without it)
-    if command -v brew &>/dev/null && ! command -v nvim &>/dev/null; then
-        info "Installing Neovim (text editor for Ctrl+G)..."
-        if run_native brew install neovim; then
-            success "Neovim installed."
-        else
-            warn "Neovim installation failed — Ctrl+G editing won't work."
-            warn "You can install it later: brew install neovim"
-        fi
-    elif command -v nvim &>/dev/null; then
         success "Neovim found."
     fi
 
-    # 3. Claude Code via official install script (blocking)
+    # 2. Claude Code via official install script (blocking)
     if ! command -v claude &>/dev/null; then
         info "Installing Claude Code..."
-        if run_native bash -c "$(curl -fsSL https://claude.ai/install.sh)"; then
-            # The installer may put claude in ~/.local/bin or ~/.claude/local/bin
+        if bash -c "$(curl -fsSL https://claude.ai/install.sh)"; then
+            # Refresh PATH to pick up newly installed claude
             export PATH="$HOME/.local/bin:$HOME/.claude/local/bin:$PATH"
             if command -v claude &>/dev/null; then
                 success "Claude Code installed."
@@ -190,7 +168,7 @@ run_setup() {
         success "Claude Code found."
     fi
 
-    # 4. Neovim wrapper
+    # 3. Neovim wrapper
     install_nvim_wrapper
 
     echo ""
@@ -230,14 +208,16 @@ run_update_check() {
 
     {
         echo "--- Update check: $(date) ---"
-        # Update Claude Code via its own updater if available
+        # Update Claude Code
         if command -v claude &>/dev/null; then
             claude update 2>&1 || true
         fi
-        # Update Neovim via Homebrew
-        setup_brew_env
-        if command -v brew &>/dev/null; then
-            run_native brew upgrade neovim 2>&1 || true
+        # Update Neovim by re-downloading stable release
+        if curl -fsSL "$NVIM_RELEASE_URL" -o "$STATE_DIR/nvim-update.tar.gz" 2>/dev/null; then
+            rm -rf "$NVIM_DIR"
+            mkdir -p "$NVIM_DIR"
+            tar xzf "$STATE_DIR/nvim-update.tar.gz" -C "$NVIM_DIR" --strip-components=1
+            rm -f "$STATE_DIR/nvim-update.tar.gz"
         fi
         echo "$now" > "$last_update_file"
         echo "--- Update complete ---"
@@ -249,13 +229,11 @@ run_update_check
 # ─── Choose Working Directory ───
 
 choose_directory() {
-    # 1. If a folder was passed (Finder "Open With" or open --args), use it
     if [ -n "${BIRDBRAIN_OPEN_DIR:-}" ] && [ -d "$BIRDBRAIN_OPEN_DIR" ]; then
         echo "$BIRDBRAIN_OPEN_DIR"
         return
     fi
 
-    # 2. Otherwise, show a native macOS folder picker
     local picked
     picked=$(osascript -e 'try
         set chosenFolder to POSIX path of (choose folder with prompt "Choose a folder to open in Birdbrain:")
@@ -269,7 +247,6 @@ choose_directory() {
         return
     fi
 
-    # 3. Fallback to home directory if picker was cancelled
     echo "$HOME"
 }
 
