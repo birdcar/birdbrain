@@ -31,8 +31,10 @@ build: download-kitty
 	# Scripts
 	@cp src/scripts/launcher.sh "$(BUNDLE)/Contents/Resources/scripts/"
 	@cp src/scripts/nvim-wrapper.sh "$(BUNDLE)/Contents/Resources/scripts/"
+	@cp src/scripts/update-app.sh "$(BUNDLE)/Contents/Resources/scripts/"
 	@chmod +x "$(BUNDLE)/Contents/Resources/scripts/launcher.sh"
 	@chmod +x "$(BUNDLE)/Contents/Resources/scripts/nvim-wrapper.sh"
+	@chmod +x "$(BUNDLE)/Contents/Resources/scripts/update-app.sh"
 
 	# Kitty config + Catppuccin theme files
 	@cp src/config/kitty/kitty.conf "$(BUNDLE)/Contents/Resources/config/kitty/"

@@ -226,6 +226,10 @@ run_update_check() {
 
 run_update_check
 
+# ─── App Self-Update ───
+
+"$RESOURCES/scripts/update-app.sh" "$RESOURCES/../Info.plist" > /dev/null 2>&1 &
+
 # ─── Choose Working Directory ───
 
 choose_directory() {
