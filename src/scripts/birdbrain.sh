@@ -15,7 +15,7 @@ if [ -n "${1:-}" ] && [ -d "$1" ]; then
     export BIRDBRAIN_OPEN_DIR="$1"
 fi
 
-exec "$KITTY_BIN" \
+exec arch -arm64 "$KITTY_BIN" \
     --config="$RESOURCES/config/kitty/kitty.conf" \
     --override="shell=$RESOURCES/scripts/launcher.sh" \
     --single-instance \

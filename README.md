@@ -36,8 +36,8 @@ This removes the app from `/Applications`, plus the `~/.birdbrain` state directo
 The first time you open Birdbrain, it detects that its dependencies are missing and walks you through setup. It installs three things, in order:
 
 1. **Homebrew** -- you'll be prompted for your macOS password
-2. **Neovim** -- the text editor used for Ctrl+G
-3. **Claude Code** -- the main thing
+2. **Neovim** -- the text editor used for Ctrl+G (installed via Homebrew)
+3. **Claude Code** -- installed via the [official install script](https://claude.ai/install.sh)
 
 The whole process takes a few minutes depending on your internet connection. If anything fails, close the app and reopen it -- setup picks up where it left off.
 
@@ -130,7 +130,7 @@ rm -rf ~/.birdbrain ~/.config/birdbrain
 Updates happen automatically in the background, but if you need to force it:
 
 ```bash
-brew upgrade claude
+claude update
 ```
 
 ### Neovim plugins not loading

@@ -49,6 +49,17 @@ wait_for_key() {
     printf '\n'
 }
 
+# Run a command under native ARM architecture to avoid Rosetta issues
+# Kitty's embedded binary may run under x86_64, but Homebrew on Apple
+# Silicon is at /opt/homebrew and requires ARM execution
+run_native() {
+    if [ "$(uname -m)" = "arm64" ] || [ -d /opt/homebrew ]; then
+        arch -arm64 "$@"
+    else
+        "$@"
+    fi
+}
+
 # ─── Homebrew PATH ───
 
 setup_brew_env() {
@@ -63,7 +74,7 @@ setup_brew_env
 
 # ─── Editor setup ───
 
-export PATH="$BIN_DIR:$PATH"
+export PATH="$HOME/.claude/local/bin:$BIN_DIR:$PATH"
 export EDITOR="$BIN_DIR/nvim-birdbrain"
 export VISUAL="$EDITOR"
 
@@ -91,7 +102,6 @@ deploy_nvim_config() {
     if [ "$app_version" != "$deployed_version" ] || [ ! -d "$NVIM_CONFIG_DIR/lua" ]; then
         info "Syncing Neovim configuration..."
         mkdir -p "$NVIM_CONFIG_DIR"
-        # Use rsync to keep it clean — delete stale files from previous versions
         if command -v rsync &>/dev/null; then
             rsync -a --delete "$RESOURCES/config/nvim/" "$NVIM_CONFIG_DIR/"
         else
@@ -119,12 +129,12 @@ run_setup() {
     info "Welcome to Birdbrain! Let's get you set up."
     echo ""
 
-    # 1. Homebrew
+    # 1. Homebrew (needed for Neovim)
     if ! command -v brew &>/dev/null; then
         info "Installing Homebrew (macOS package manager)..."
         info "You may be asked for your password."
         echo ""
-        if /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
+        if run_native /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
             setup_brew_env
             if command -v brew &>/dev/null; then
                 success "Homebrew installed."
@@ -142,10 +152,10 @@ run_setup() {
         success "Homebrew found."
     fi
 
-    # 2. Neovim (non-blocking — Claude Code works without it)
+    # 2. Neovim via Homebrew (non-blocking — Claude Code works without it)
     if command -v brew &>/dev/null && ! command -v nvim &>/dev/null; then
         info "Installing Neovim (text editor for Ctrl+G)..."
-        if brew install neovim; then
+        if run_native brew install neovim; then
             success "Neovim installed."
         else
             warn "Neovim installation failed — Ctrl+G editing won't work."
@@ -155,20 +165,28 @@ run_setup() {
         success "Neovim found."
     fi
 
-    # 3. Claude Code (blocking — can't proceed without it)
-    if command -v brew &>/dev/null && ! command -v claude &>/dev/null; then
+    # 3. Claude Code via official install script (blocking)
+    if ! command -v claude &>/dev/null; then
         info "Installing Claude Code..."
-        if brew install claude; then
-            success "Claude Code installed."
+        if run_native bash -c "$(curl -fsSL https://claude.ai/install.sh)"; then
+            # The installer puts claude in ~/.claude/local/bin
+            export PATH="$HOME/.claude/local/bin:$PATH"
+            if command -v claude &>/dev/null; then
+                success "Claude Code installed."
+            else
+                error "Claude Code installed but not found in PATH."
+                error "Try closing and reopening Birdbrain."
+                had_errors=true
+            fi
         else
             error "Claude Code installation failed."
             error "Check your internet connection and try reopening Birdbrain."
             error ""
             error "To install manually, run in a terminal:"
-            error "  brew install claude"
+            error "  curl -fsSL https://claude.ai/install.sh | bash"
             had_errors=true
         fi
-    elif command -v claude &>/dev/null; then
+    else
         success "Claude Code found."
     fi
 
@@ -212,9 +230,15 @@ run_update_check() {
 
     {
         echo "--- Update check: $(date) ---"
+        # Update Claude Code via its own updater if available
+        if command -v claude &>/dev/null; then
+            claude update 2>&1 || true
+        fi
+        # Update Neovim via Homebrew
         setup_brew_env
-        brew upgrade claude 2>&1 || true
-        brew upgrade neovim 2>&1 || true
+        if command -v brew &>/dev/null; then
+            run_native brew upgrade neovim 2>&1 || true
+        fi
         echo "$now" > "$last_update_file"
         echo "--- Update complete ---"
     } >> "$UPDATE_LOG" 2>&1 &
