@@ -194,6 +194,18 @@ run_setup() {
     # 3. Neovim wrapper
     install_nvim_wrapper
 
+    # 4. Pre-install Neovim plugins so first Ctrl+G is instant
+    if [ -x "$NVIM_DIR/bin/nvim" ]; then
+        info "Installing editor plugins..."
+        deploy_nvim_config
+        deploy_user_configs
+        if NVIM_APPNAME=birdbrain "$NVIM_DIR/bin/nvim" --headless "+Lazy! sync" +qa 2>/dev/null; then
+            success "Editor plugins installed."
+        else
+            warn "Plugin install failed — they'll install on first editor open."
+        fi
+    fi
+
     echo ""
     if [ "$had_errors" = true ]; then
         error "Setup completed with errors. See messages above."
